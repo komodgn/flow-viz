@@ -6,3 +6,8 @@ kotlin-js-store/
 # IDE
 .idea/
 *.iml
+
+.vercel/
+.vercel
+.env*
+local.properties
