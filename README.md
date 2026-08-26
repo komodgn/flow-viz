@@ -1,44 +1,83 @@
 # Flow Viz
 
-Kotlin Coroutines `Flow`를 **마블 다이어그램 애니메이션**으로 보여주는 인터랙티브 학습 사이트.
-Compose Multiplatform (wasmJs)로 만들었고, 실제 `flow{}` / `StateFlow` / `SharedFlow`를 브라우저에서 진짜로 돌려서 시각화한다.
+An interactive playground that visualizes Kotlin Coroutines `Flow` as **animated marble diagrams**.
+Built with Compose Multiplatform (wasmJs) — it runs real `flow{}` / `StateFlow` / `SharedFlow`
+in the browser and renders their emissions live, so you *see* how each one actually behaves.
 
-> [`flow-study`](../flow-study) 콘솔 예제(01~07)의 웹 버전. 학습 겸 Compose+Flow 복습용.
+> A web version of the [`flow-study`](../flow-study) console examples (01–07),
+> built to learn Flow and Compose at the same time.
 
-## 실행 (개발 서버)
+## Scenes
+
+| Scene | What you can feel by clicking |
+|-------|-------------------------------|
+| **Cold Flow** | Nothing runs until you `collect`; each collector re-runs the block from the start |
+| **Hot / StateFlow** | Conflation (same value isn't re-emitted) + a late subscriber gets the latest value instantly |
+| **The Bug** | A real hang reproduced: `drop(1).first()` waits for an emit that never comes |
+| **SharedFlow** | `replay=0` late subscribers miss past events; no conflation, so duplicates all arrive |
+| **map / combine** | `map` transforms each value; `combine` recomputes when *any* input changes |
+| **stateIn** | Cold→Hot conversion — one shared upstream, late subscriber starts from the current value |
+
+## Run (dev server)
 
 ```bash
 ./gradlew wasmJsBrowserDevelopmentRun
 ```
-→ webpack-dev-server가 뜨고 브라우저가 자동으로 열림 (핫 리로드 지원).
+Starts webpack-dev-server and opens the browser with hot reload.
 
-## 정적 빌드 (배포용)
+> After changing `build.gradle.kts`, fully restart the dev server (Ctrl+C then re-run) and
+> hard-reload the page (`Cmd+Shift+R`) — stale JS/wasm can otherwise cause a `LinkError`.
+
+## Static build (for hosting)
 
 ```bash
 ./gradlew wasmJsBrowserDistribution
 ```
-→ `build/dist/wasmJs/productionExecutable/` 에 `index.html` + `.wasm` + `flowviz.js` 생성.
-   이 폴더를 그대로 GitHub Pages / Netlify 등 정적 호스팅에 올리면 됨.
+Outputs `index.html` + `.wasm` + `flowviz.js` to `build/dist/wasmJs/productionExecutable/`.
+Serve that folder from any static host (Vercel, Cloudflare Pages, Netlify, GitHub Pages).
 
-## 요구사항
-- JDK 17+ (Gradle 실행용)
-- WasmGC 지원 브라우저: Chrome 119+, Firefox 120+, Safari 18.2+
+## Deployment
 
-## 로드맵
-- [x] **v0 (MVP)** — Cold Flow 씬: Collect A/B 버튼 + 구슬 pop-in 애니메이션 + 실행 로그
-- [ ] v1 — Hot(StateFlow) / The Bug 씬 추가
-- [ ] v2 — map/combine 연산자, stateIn 변환 씬
-- [ ] v3 — 사이드바 네비게이션 + 씬별 "코드 보기" 패널
+CI builds the wasm bundle and Vercel only serves it (Vercel has no JDK/Gradle, so it can't
+build the project itself). See [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+GitHub Actions runs `wasmJsBrowserDistribution`, then uploads the static output via the Vercel CLI.
 
-## 구조
+Required GitHub Actions secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+
+## Requirements
+- JDK 17+ (to run Gradle)
+- A WasmGC-capable browser: Chrome 119+, Firefox 120+, Safari 18.2+
+
+## Roadmap
+- [x] **v0 (MVP)** — Cold Flow scene: Collect A/B buttons + marble pop-in animation + run log
+- [x] **v1** — left sidebar navigation + Hot (StateFlow) / The Bug scenes
+- [x] **v2** — SharedFlow (one-off events), map/combine, stateIn scenes
+- [ ] **v3** — repeatOnLifecycle scene (lifecycle-scoped collection) + a "view source" panel per scene
+
+## Project layout
 ```
 src/wasmJsMain/
 ├── kotlin/
-│   ├── Main.kt   # CanvasBasedWindow 진입점
-│   └── App.kt    # Cold Flow 씬 (마블 다이어그램 + 컨트롤)
+│   ├── Main.kt              # wasmJs entry point (CanvasBasedWindow)
+│   ├── App.kt              # font setup, sidebar nav, scene switching
+│   ├── Theme.kt            # color palette
+│   ├── Components.kt       # shared UI (MarbleLane, LogPanel, SceneScaffold, ...)
+│   ├── ColdFlowScene.kt
+│   ├── HotFlowScene.kt
+│   ├── BugScene.kt
+│   ├── SharedFlowScene.kt
+│   ├── MapCombineScene.kt
+│   └── StateInScene.kt
+├── composeResources/
+│   └── font/               # bundled Pretendard (web can't use system fonts for Korean glyphs)
 └── resources/
     └── index.html
 ```
 
-## 스택
-Kotlin 2.1.0 · Compose Multiplatform 1.7.3 · kotlinx-coroutines 1.9.0 · Gradle 8.13 (버전은 `gradle/libs.versions.toml`)
+## Stack
+Kotlin 2.1.0 · Compose Multiplatform 1.7.3 · kotlinx-coroutines 1.9.0 · Gradle 8.13
+(versions live in `gradle/libs.versions.toml`)
+
+## Contributing
+This is a personal learning project, but ideas, issues, and PRs are welcome —
+especially new Flow scenes or clearer visualizations. Feel free to open an issue to discuss.
