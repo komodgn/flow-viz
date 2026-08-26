@@ -18,11 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,9 +39,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import flowviz.resources.Res
+import flowviz.resources.pretendard_bold
+import flowviz.resources.pretendard_regular
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.Font
 
 // ============================================================
 // Cold Flow 씬
@@ -64,94 +70,106 @@ private fun coldNumberFlow(onBlockRun: () -> Unit) = flow {
 
 @Composable
 fun App() {
-    MaterialTheme(colorScheme = darkColorScheme(background = Bg)) {
-        var laneA by remember { mutableStateOf(listOf<Int>()) }
-        var laneB by remember { mutableStateOf(listOf<Int>()) }
-        var logs by remember { mutableStateOf(listOf<String>()) }
-        val scope = rememberCoroutineScope()
+    val appFont = FontFamily(
+        Font(Res.font.pretendard_regular, FontWeight.Normal),
+        Font(Res.font.pretendard_bold, FontWeight.Bold),
+    )
 
-        fun reset() {
-            laneA = emptyList()
-            laneB = emptyList()
-            logs = emptyList()
+    MaterialTheme(colorScheme = darkColorScheme(background = Bg)) {
+        CompositionLocalProvider(
+            LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = appFont)
+        ) {
+            ColdFlowScene()
         }
+    }
+}
+
+@Composable
+private fun ColdFlowScene() {
+    var laneA by remember { mutableStateOf(listOf<Int>()) }
+    var laneB by remember { mutableStateOf(listOf<Int>()) }
+    var logs by remember { mutableStateOf(listOf<String>()) }
+    val scope = rememberCoroutineScope()
+
+    fun reset() {
+        laneA = emptyList()
+        laneB = emptyList()
+        logs = emptyList()
+    }
+
+    Column(
+        Modifier.fillMaxSize().background(Bg).verticalScroll(rememberScrollState())
+            .padding(horizontal = 32.dp, vertical = 28.dp)
+    ) {
+        Text("Flow Viz", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Cold Flow — collect 해야 흐른다",
+            color = Muted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Spacer(Modifier.height(24.dp))
+ 
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = {
+                    laneA = emptyList()
+                    scope.launch {
+                        coldNumberFlow { logs = logs + "A가 collect → flow 블록 실행됨" }
+                            .collect { laneA = laneA + it }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentA)
+            ) { Text("Collect A", color = Color.White, fontWeight = FontWeight.Bold) }
+
+            Button(
+                onClick = {
+                    laneB = emptyList()
+                    scope.launch {
+                        coldNumberFlow { logs = logs + "B가 collect → flow 블록 또 실행됨 (처음부터!)" }
+                            .collect { laneB = laneB + it }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentB)
+            ) { Text("Collect B", color = Color(0xFF1A1200), fontWeight = FontWeight.Bold) }
+
+            OutlinedButton(onClick = { reset() }) { Text("Reset", color = Muted) }
+        }
+
+        Spacer(Modifier.height(28.dp))
 
         Column(
-            Modifier.fillMaxSize().background(Bg).verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp, vertical = 28.dp)
+            Modifier.fillMaxWidth().background(Card, RoundedCornerShape(16.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Flow Viz", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text(
-                "Cold Flow — collect 해야 흐른다",
-                color = Muted, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp)
-            )
+            val sourceMarbles = if (laneA.isEmpty() && laneB.isEmpty()) emptyList() else (1..4).toList()
+            MarbleLane("Source", "flow { }", sourceMarbles, Muted, dimmed = true)
+            MarbleLane("수집자 A", "collect", laneA, AccentA)
+            MarbleLane("수집자 B", "collect", laneB, AccentB)
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
 
-            // ── 컨트롤 ──────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = {
-                        laneA = emptyList()
-                        scope.launch {
-                            coldNumberFlow { logs = logs + "🔵 A가 collect → flow 블록 실행됨" }
-                                .collect { laneA = laneA + it }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentA)
-                ) { Text("▶ Collect A", color = Color.White, fontWeight = FontWeight.SemiBold) }
-
-                Button(
-                    onClick = {
-                        laneB = emptyList()
-                        scope.launch {
-                            coldNumberFlow { logs = logs + "🟠 B가 collect → flow 블록 또 실행됨(처음부터!)" }
-                                .collect { laneB = laneB + it }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentB)
-                ) { Text("▶ Collect B", color = Color(0xFF1A1200), fontWeight = FontWeight.SemiBold) }
-
-                OutlinedButton(onClick = { reset() }) { Text("⟲ Reset", color = Muted) }
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            // ── 마블 다이어그램 ─────────────────────
-            Column(
-                Modifier.fillMaxWidth().background(Card, RoundedCornerShape(16.dp)).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                MarbleLane("Source", "flow { }", if (laneA.isEmpty() && laneB.isEmpty()) emptyList() else (1..4).toList(), Muted, dimmed = true)
-                MarbleLane("수집자 A", "collect", laneA, AccentA)
-                MarbleLane("수집자 B", "collect", laneB, AccentB)
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── 로그 ────────────────────────────────
-            Column(Modifier.fillMaxWidth().background(Card, RoundedCornerShape(16.dp)).padding(20.dp)) {
-                Text("실행 로그", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-                if (logs.isEmpty()) {
-                    Text(
-                        "아직 아무도 collect 안 함 → flow 블록은 실행조차 안 됐음",
-                        color = Muted, fontSize = 14.sp, fontFamily = FontFamily.Monospace
-                    )
-                } else {
-                    logs.forEach {
-                        Text(it, color = Color(0xFFCED3E0), fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                    }
+        Column(Modifier.fillMaxWidth().background(Card, RoundedCornerShape(16.dp)).padding(20.dp)) {
+            Text("실행 로그", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            if (logs.isEmpty()) {
+                Text(
+                    "아직 아무도 collect 안 함 → flow 블록은 실행조차 안 됐음",
+                    color = Muted, fontSize = 14.sp
+                )
+            } else {
+                logs.forEach {
+                    Text(it, color = Color(0xFFCED3E0), fontSize = 14.sp)
                 }
             }
-
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "💡 A와 B를 각각 눌러보세요. 구독자마다 flow 블록이 \"처음부터 새로\" 실행돼 " +
-                    "1,2,3,4를 독립적으로 받습니다. 이게 Cold Flow의 핵심.",
-                color = Muted, fontSize = 13.sp
-            )
         }
+
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "A와 B를 각각 눌러보세요. 구독자마다 flow 블록이 \"처음부터 새로\" 실행돼 " +
+                "1,2,3,4를 독립적으로 받습니다. 이게 Cold Flow의 핵심.",
+            color = Muted, fontSize = 13.sp
+        )
     }
 }
 
@@ -159,8 +177,8 @@ fun App() {
 private fun MarbleLane(label: String, sub: String, marbles: List<Int>, color: Color, dimmed: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(96.dp)) {
-            Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text(sub, color = Muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(sub, color = Muted, fontSize = 11.sp)
         }
         Box(
             Modifier.height(52.dp).fillMaxWidth()

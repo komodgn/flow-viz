@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.compose)
 }
 
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "flowviz.resources"
+    generateResClass = always
+}
+
 kotlin {
     wasmJs {
         moduleName = "flowviz"
@@ -22,6 +28,7 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.ui)
+                implementation(compose.components.resources)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
